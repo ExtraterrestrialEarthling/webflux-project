@@ -1,0 +1,10 @@
+INSERT INTO products(name) VALUES ('bread');
+INSERT INTO products(name) VALUES ('milk');
+INSERT INTO products(name) VALUES ('cheese');
+INSERT INTO products(name) VALUES ('iphone');
+INSERT INTO products(name) VALUES ('car');
+INSERT INTO products(name) VALUES ('pills');
+INSERT INTO products(name) VALUES ('yoghurt');
+INSERT INTO products(name) VALUES ('laptop');
+INSERT INTO products(name) VALUES ('TV');
+INSERT INTO products(name) VALUES ('spaghetti');
