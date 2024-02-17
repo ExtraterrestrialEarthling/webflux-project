@@ -14,7 +14,6 @@ import ru.flamexander.reactive.service.services.ProductsService;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.function.Function;
 
 
 @RestController
@@ -24,9 +23,6 @@ public class ProductsDetailsController {
     private final ProductDetailsService productDetailsService;
     private final ProductsService productsService;
 
-    private final Function<Tuple2<Product, ProductDetailsDto>, DetailedProductDto> MAP_TO_DTO_FUNCTION =
-            tuple -> new DetailedProductDto(tuple.getT1().getId(),
-                    tuple.getT1().getName(), tuple.getT2().getDescription());
     private final String DEFAULT_DESCRIPTION_MESSAGE = "No description yet, come back later!";
 
 
@@ -43,20 +39,20 @@ public class ProductsDetailsController {
         Mono<Product> product = productsService.findById(id)
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Product not found")));
         Mono<ProductDetailsDto> details = productDetailsService.getProductDetailsById(id)
-                .defaultIfEmpty(new ProductDetailsDto(id, DEFAULT_DESCRIPTION_MESSAGE));
-        return Mono.zip(product, details).map(MAP_TO_DTO_FUNCTION);
+                .onErrorResume(error -> Mono.just(new ProductDetailsDto(id, DEFAULT_DESCRIPTION_MESSAGE)));
+        return Mono.zip(product, details).map(this::mapToDto);
     }
 
     @GetMapping
     public Flux<DetailedProductDto> getAllDetailedProductsById(@RequestParam List<Long> ids) {
         Flux<ProductDetailsDto> productDetails = Flux.fromIterable(ids).flatMap(id ->
                 productDetailsService.getProductDetailsById(id)
-                        .defaultIfEmpty(new ProductDetailsDto(id, DEFAULT_DESCRIPTION_MESSAGE)));
+                        .onErrorResume(error -> Mono.just(new ProductDetailsDto(id, DEFAULT_DESCRIPTION_MESSAGE))));
         Flux<Product> products = productsService.findAllById(ids)
                 .switchIfEmpty(Flux.error(new NoSuchElementException("Product not found")));
         return Flux.zip(products.sort(Comparator.comparing(Product::getId)),
                         productDetails.sort(Comparator.comparing(ProductDetailsDto::getId)))
-                .map(MAP_TO_DTO_FUNCTION);
+                .map(this::mapToDto);
     }
 
     @GetMapping("/all")
@@ -65,9 +61,14 @@ public class ProductsDetailsController {
         Flux<Long> productIds = products.map(Product::getId);
         Flux<ProductDetailsDto> productDetails = productIds
                 .flatMap(id -> productDetailsService.getProductDetailsById(id)
-                        .defaultIfEmpty(new ProductDetailsDto(id, DEFAULT_DESCRIPTION_MESSAGE)));
+                                .onErrorResume(error-> Mono.just(new ProductDetailsDto(id, DEFAULT_DESCRIPTION_MESSAGE))));
         return Flux.zip(products.sort(Comparator.comparing(Product::getId)),
                         productDetails.sort(Comparator.comparing(ProductDetailsDto::getId)))
-                .map(MAP_TO_DTO_FUNCTION);
+                .map(this::mapToDto);
+    }
+
+    private DetailedProductDto mapToDto(Tuple2<Product, ProductDetailsDto> tuple) {
+        return new DetailedProductDto(tuple.getT1().getId(),
+                tuple.getT1().getName(), tuple.getT2().getDescription());
     }
 }
